@@ -1,5 +1,5 @@
 variable "sentry_dsn" {
-  type = string
+  type        = string
   description = "Sentry DSN"
-  sensitive = true
+  sensitive   = true
 }
