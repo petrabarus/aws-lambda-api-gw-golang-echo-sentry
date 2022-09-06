@@ -8,6 +8,12 @@ resource "aws_lambda_function" "lambda_function" {
 
   filename         = "dist/lambda.zip"
   source_code_hash = filebase64sha256("dist/lambda.zip")
+  environment {
+    variables = {
+      SENTRY_DSN = var.sentry_dsn
+      RELEASE    = substr(filebase64sha256("dist/lambda.zip"), 0, 5)
+    }
+  }
 }
 
 

@@ -6,8 +6,8 @@ dist/main: lambda/main.go
 dist: dist/lambda.zip
 
 dist/lambda.zip: dist/main
-	cp -rf lambda dist/lambda && \
-		cp -rf vendor dist/vendor
+	cp -rf lambda dist/ && \
+		cp -rf vendor dist/
 	cd dist && \
 		zip -r lambda.zip main lambda vendor
 	mkdir -p deployments/terraform/dist && \
