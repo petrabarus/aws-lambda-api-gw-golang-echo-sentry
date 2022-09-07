@@ -1,5 +1,8 @@
 all: dist/main
 
+local:
+	go build -o dist/local lambda/main.go
+
 dist/main: lambda/main.go
 	GOARCH=amd64 GOOS=linux go build -o dist/main lambda/main.go
 

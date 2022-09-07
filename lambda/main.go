@@ -28,14 +28,16 @@ func NewServer() *echo.Echo {
 	AddRoutes(app)
 	app.Use(middleware.Logger())
 	app.Use(middleware.Recover())
-	app.Use(sentryecho.New(sentryecho.Options{}))
+	app.Use(sentryecho.New(sentryecho.Options{
+		Repanic: true,
+	}))
 
 	return app
 }
 
 func AddRoutes(app *echo.Echo) {
 	app.GET("/hello1", func(c echo.Context) error {
-		return c.String(200, "Hello, World!")
+		return c.String(http.StatusOK, "Hello, World!")
 	})
 
 	app.GET("/error1", func(c echo.Context) error {
@@ -51,11 +53,18 @@ func AddRoutes(app *echo.Echo) {
 		sentry.CaptureException(err)
 		return err
 	})
+
+	app.GET("/error4", func(c echo.Context) error {
+		var luckyNumber []int
+		return c.String(http.StatusOK, fmt.Sprintf("number: %d", luckyNumber[42]))
+	})
 }
 
 func InitSentry() {
 	dsn := os.Getenv("SENTRY_DSN")
 	release := os.Getenv("RELEASE")
+	fmt.Printf("Sentry DSN: %s\n", dsn)
+	fmt.Printf("Release: %s\n", release)
 	err := sentry.Init(sentry.ClientOptions{
 		Dsn:              dsn,
 		TracesSampleRate: 1.0,
@@ -71,6 +80,14 @@ func InitSentry() {
 
 func main() {
 	InitSentry()
-	echoLambda = echoadapter.New(NewServer())
-	lambda.Start(HandleRequest)
+
+	app := NewServer()
+
+	_, present := os.LookupEnv("IS_LOCAL")
+	if present {
+		app.Logger.Fatal(app.Start(":8080"))
+	} else {
+		echoLambda = echoadapter.New(app)
+		lambda.Start(HandleRequest)
+	}
 }
