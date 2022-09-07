@@ -23,18 +23,6 @@ func HandleRequest(ctx context.Context, request events.APIGatewayProxyRequest) (
 	return echoLambda.ProxyWithContext(ctx, request)
 }
 
-func NewServer() *echo.Echo {
-	app := echo.New()
-	AddRoutes(app)
-	app.Use(middleware.Logger())
-	app.Use(middleware.Recover())
-	app.Use(sentryecho.New(sentryecho.Options{
-		Repanic: true,
-	}))
-
-	return app
-}
-
 func AddRoutes(app *echo.Echo) {
 	app.GET("/hello1", func(c echo.Context) error {
 		return c.String(http.StatusOK, "Hello, World!")
@@ -50,7 +38,6 @@ func AddRoutes(app *echo.Echo) {
 
 	app.GET("/error3", func(c echo.Context) error {
 		err := echo.NewHTTPError(http.StatusBadRequest, "testing bad request")
-		sentry.CaptureException(err)
 		return err
 	})
 
@@ -58,6 +45,30 @@ func AddRoutes(app *echo.Echo) {
 		var luckyNumber []int
 		return c.String(http.StatusOK, fmt.Sprintf("number: %d", luckyNumber[42]))
 	})
+}
+
+func customHTTPErrorHandler(app *echo.Echo) echo.HTTPErrorHandler {
+	return func(err error, ctx echo.Context) {
+		sentry.WithScope(func(scope *sentry.Scope) {
+			scope.SetRequest(ctx.Request())
+			sentry.CaptureException(err)
+		})
+
+		app.DefaultHTTPErrorHandler(err, ctx)
+	}
+}
+
+func NewServer() *echo.Echo {
+	app := echo.New()
+	AddRoutes(app)
+	app.HTTPErrorHandler = customHTTPErrorHandler(app)
+	app.Use(middleware.Logger())
+	app.Use(middleware.Recover())
+	app.Use(sentryecho.New(sentryecho.Options{
+		Repanic: true,
+	}))
+
+	return app
 }
 
 func InitSentry() {
